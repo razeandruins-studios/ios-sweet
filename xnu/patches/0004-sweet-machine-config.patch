@@ -296,7 +296,7 @@ index 9454534..2dd8977 100644
  #endif  /* ARM64_BOARD_CONFIG_BCM2837 */
  
 +
-+#ifdef ARM64_BOARD_CONFIG_SWEET || ARM64_BOARD_CONFIG_CURTANA
++#if defined(ARM64_BOARD_CONFIG_SWEET) || defined(ARM64_BOARD_CONFIG_CURTANA)
 +#include <pexpert/arm64/SWEET.h>
 +
 +#define MAX_L2_CLINE                   6
