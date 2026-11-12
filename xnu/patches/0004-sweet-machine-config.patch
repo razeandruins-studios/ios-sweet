@@ -1,5 +1,5 @@
 diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
-index 8460893..9a748ea 100644
+index 5bd6f23..f132dee 100644
 --- a/makedefs/MakeInc.def
 +++ b/makedefs/MakeInc.def
 @@ -29,7 +29,7 @@ SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
@@ -11,7 +11,7 @@ index 8460893..9a748ea 100644
  
  endif
  
-@@ -61,6 +61,7 @@ MACHINE_FLAGS_ARM64_T8103 = -DARM64_BOARD_CONFIG_T8103                  -mcpu=ap
+@@ -61,6 +61,8 @@ MACHINE_FLAGS_ARM64_T8103 = -DARM64_BOARD_CONFIG_T8103                  -mcpu=ap
  MACHINE_FLAGS_ARM64_T6000 = -DARM64_BOARD_CONFIG_T6000 		-mcpu=apple-a14
  MACHINE_FLAGS_ARM64_VMAPPLE = -DARM64_BOARD_CONFIG_VMAPPLE              -march=armv8.5a
  MACHINE_FLAGS_ARM64_BCM2837 = -DARM64_BOARD_CONFIG_BCM2837
@@ -20,7 +20,7 @@ index 8460893..9a748ea 100644
  
  
  #
-@@ -259,8 +260,11 @@ ifeq ($(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG),)
+@@ -259,8 +261,13 @@ ifeq ($(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG),)
  # Without embdedded device map, use a default arch string
  export ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG := $(shell echo $(CURRENT_ARCH_CONFIG) | tr A-Z a-z)
  ifneq ($(filter arm64,$(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG)),)
@@ -35,7 +35,7 @@ index 8460893..9a748ea 100644
  endif
  
 diff --git a/osfmk/arm64/proc_reg.h b/osfmk/arm64/proc_reg.h
-index 133b07f..e01c124 100644
+index 133b07f..69405dd 100644
 --- a/osfmk/arm64/proc_reg.h
 +++ b/osfmk/arm64/proc_reg.h
 @@ -213,6 +213,14 @@
@@ -54,7 +54,7 @@ index 133b07f..e01c124 100644
  
  /* I-Cache. */
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
-index c40c6ea..9888608 100644
+index c40c6ea..5c525fc 100644
 --- a/osfmk/arm64/sleh.c
 +++ b/osfmk/arm64/sleh.c
 @@ -32,6 +32,7 @@
@@ -65,9 +65,9 @@ index c40c6ea..9888608 100644
  #include <arm/trap.h> /* for IS_ARM_GDB_TRAP() et al */
  #include <arm64/proc_reg.h>
  #include <arm64/machine_machdep.h>
-@@ -1855,6 +1856,42 @@ sleh_irq(arm_saved_state_t *state)
- #endif
+@@ -1857,6 +1858,43 @@ sleh_irq(arm_saved_state_t *state)
  
+ 	sleh_interrupt_handler_prologue(state, DBG_INTR_TYPE_OTHER);
  
 +#if defined(SWEET) || defined(CURTANA)
 +	/*
@@ -97,30 +97,23 @@ index c40c6ea..9888608 100644
 +		sleh_interrupt_handler_prologue(state, DBG_INTR_TYPE_OTHER);
 +		if (cdp->interrupt_handler) {
 +			cdp->interrupt_handler(cdp->interrupt_target,
-+			    cdp->interrupt_refCon,
-+			    cdp->interrupt_nub,
-+			    intid);
++				cdp->interrupt_refCon,
++				cdp->interrupt_nub,
++				intid);
 +		}
 +		__builtin_arm_wsr64("ICC_EOIR1_EL1", iar);
 +	}
 +	__builtin_arm_isb(ISB_SY);
 +#else
- 	sleh_interrupt_handler_prologue(state, DBG_INTR_TYPE_OTHER);
- 
++
  #if USE_APPLEARMSMP
-@@ -1866,6 +1903,7 @@ sleh_irq(arm_saved_state_t *state)
- 	    cdp->interrupt_nub,
- 	    cdp->interrupt_source);
- #endif
-+#endif /* SWEET || CURTANA */
- 
- 	entropy_collect();
- 
+ 	PE_handle_ext_interrupt();
+ #else
 diff --git a/osfmk/arm64/start.s b/osfmk/arm64/start.s
-index e5336e5..f8d0d2e 100644
+index e5336e5..82d09fc 100644
 --- a/osfmk/arm64/start.s
 +++ b/osfmk/arm64/start.s
-@@ -745,11 +745,11 @@ common_start:
+@@ -745,7 +745,7 @@ common_start:
  	MSR_SCTLR_EL1_X0
  	isb		sy
  
@@ -129,19 +122,15 @@ index e5336e5..f8d0d2e 100644
  	MOV64   x1, SCTLR_EL1_DEFAULT
  	cmp		x0, x1
  	bne		.
--#endif /* !VMAPPLE */
-+#endif /* !VMAPPLE && !(SWEET || CURTANA) */
- 
- #if (!CONFIG_KERNEL_INTEGRITY || (CONFIG_KERNEL_INTEGRITY && !defined(KERNEL_INTEGRITY_WT)))
- 	/* Watchtower
 diff --git a/pexpert/arm/pe_fiq.c b/pexpert/arm/pe_fiq.c
-index 3ad743f..4ec6989 100644
+index 3ad743f..65e2df7 100644
 --- a/pexpert/arm/pe_fiq.c
 +++ b/pexpert/arm/pe_fiq.c
-@@ -141,11 +141,25 @@ pe_init_fiq()
+@@ -141,12 +141,28 @@ pe_init_fiq()
  		}
  	}
  
++
 +#if defined(SWEET) || defined(CURTANA)
 +	/*
 +	 * Real hardware with two security states: Group 0 is TrustZone's and
@@ -160,27 +149,28 @@ index 3ad743f..4ec6989 100644
  
  	// Enable PPI 27
  	gicr_write32(GICR_ISENABLER0, (1 << 27));
-+#endif /* SWEET || CURTANA */
  
++#endif /* SWEET || CURTANA */
++
  	// Enable system register access
  	uint64_t icc_sre = __builtin_arm_rsr64("ICC_SRE_EL1");
-@@ -153,8 +167,12 @@ pe_init_fiq()
- 	__builtin_arm_wsr64("ICC_SRE_EL1", icc_sre);
- 	__builtin_arm_isb(ISB_SY);
+ 	icc_sre |= ICC_SRE_SRE;
+@@ -155,6 +171,10 @@ pe_init_fiq()
  
+ 	// Set priority masks and binary point for group 0
+ 	__builtin_arm_wsr64("ICC_BPR0_EL1", 0);
++
 +#if defined(SWEET) || defined(CURTANA)
 +	__builtin_arm_wsr64("ICC_BPR1_EL1", 0);
 +#else
- 	// Set priority masks and binary point for group 0
- 	__builtin_arm_wsr64("ICC_BPR0_EL1", 0);
-+#endif /* SWEET || CURTANA */
  	__builtin_arm_wsr64("ICC_PMR_EL1", 0xFF);
  
  	// Set EOI mode of this processor
-@@ -162,12 +180,24 @@ pe_init_fiq()
+@@ -162,11 +182,25 @@ pe_init_fiq()
  	icc_ctlr &= ~ICC_CTLR_EOIMODE;
  	__builtin_arm_wsr64("ICC_CTLR_EL1", icc_ctlr);
  
++
 +#if defined(SWEET) || defined(CURTANA)
 +	// ABL leaves only ARE_NS set; Linux writes ARE_NS | EnableGrp1A | EnableGrp1
 +	uint32_t gicd_ctlr = gicd_read32(GICD_CTLR);
@@ -197,13 +187,13 @@ index 3ad743f..4ec6989 100644
  	gicd_ctlr |= GICD_CTLR_ENABLEGRP0;
  	gicd_write32(GICD_CTLR, gicd_ctlr);
  	__builtin_arm_wsr64("ICC_IGRPEN0_EL1", 1);
- 	__builtin_arm_isb(ISB_SY);
++
 +#endif /* SWEET || CURTANA */
+ 	__builtin_arm_isb(ISB_SY);
  }
  #else
- void
 diff --git a/pexpert/pexpert/arm64/Makefile b/pexpert/pexpert/arm64/Makefile
-index 8226b8c..c7d274f 100644
+index 8226b8c..2560f71 100644
 --- a/pexpert/pexpert/arm64/Makefile
 +++ b/pexpert/pexpert/arm64/Makefile
 @@ -17,7 +17,8 @@ PRIVATE_KERNELFILES = \
@@ -212,13 +202,13 @@ index 8226b8c..c7d274f 100644
  	VMAPPLE.h \
 -	BCM2837.h
 +	BCM2837.h \
-+	SWEET.h
++	SWEET.h \
  
  
  # Headers installed into System.framework/PrivateHeaders (userspace internal SDK only).
 diff --git a/pexpert/pexpert/arm64/SWEET.h b/pexpert/pexpert/arm64/SWEET.h
 new file mode 100644
-index 0000000..a044ad0
+index 0000000..4e10f76
 --- /dev/null
 +++ b/pexpert/pexpert/arm64/SWEET.h
 @@ -0,0 +1,75 @@
@@ -279,9 +269,9 @@ index 0000000..a044ad0
 +#define GICD_CTLR_ARE_NS          0x10
 +#define GICD_CTLR_RWP             0x80000000
 +
-+#define GICR_TYPER                              0x08
-+#define GICR_WAKER                              0x14
-+#define GICR_IGROUPR0                           0x10080
++#define GICR_TYPER				0x08
++#define GICR_WAKER				0x14
++#define GICR_IGROUPR0                             0x10080
 +#define GICR_ISENABLER0                         0x10100
 +#define GICR_IPRIORITYR0                        0x10400
 +
@@ -298,13 +288,14 @@ index 0000000..a044ad0
 +
 +#endif /* ! _PEXPERT_ARM64_SWEET_H */
 diff --git a/pexpert/pexpert/arm64/board_config.h b/pexpert/pexpert/arm64/board_config.h
-index 9454534..88e524a 100644
+index 9454534..2dd8977 100644
 --- a/pexpert/pexpert/arm64/board_config.h
 +++ b/pexpert/pexpert/arm64/board_config.h
 @@ -97,6 +97,17 @@
  #define CORE_NCTRS                     8 /* Placeholder; KPC is not enabled for this target */
  #endif  /* ARM64_BOARD_CONFIG_BCM2837 */
  
++
 +#ifdef ARM64_BOARD_CONFIG_SWEET || ARM64_BOARD_CONFIG_CURTANA
 +#include <pexpert/arm64/SWEET.h>
 +
@@ -315,7 +306,6 @@ index 9454534..88e524a 100644
 +#define CORE_NCTRS                     8 /* Placeholder; KPC is not enabled for this target */
 +
 +#endif  /* ARM64_BOARD_CONFIG_SWEET || ARM64_BOARD_CONFIG_CURTANA */
-+
  #ifdef ARM64_BOARD_CONFIG_VMAPPLE
  #include <pexpert/arm64/VMAPPLE.h>
  
