@@ -1,0 +1,14 @@
+diff --git a/bsd/dev/sweet_usb.c b/bsd/dev/sweet_usb.c
+--- a/bsd/dev/sweet_usb.c
++++ b/bsd/dev/sweet_usb.c
+@@ -120,8 +120,8 @@
+ 	if (!sweet_usb_dev)
+ 		return kIOReturnError;
+
+-	sweet_usb_desc_strings[1] = (char *) "ios-sweet";
+-	sweet_usb_desc_strings[2] = (char *) "Sweet iOS (USB Ethernet)";
++	sweet_usb_desc_strings[1] = (char *) "ios-curtsan";
++	sweet_usb_desc_strings[2] = (char *) "Curtsan iOS (USB Ethernet)";
+
+ 	int rc = sweet_usb_probe();
+ 	if (rc != KERN_SUCCESS) {

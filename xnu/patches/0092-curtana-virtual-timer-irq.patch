@@ -1,0 +1,16 @@
+diff --git a/osfmk/arm64/rtclock.c b/osfmk/arm64/rtclock.c
+--- a/osfmk/arm64/rtclock.c
++++ b/osfmk/arm64/rtclock.c
+@@ -1,4 +1,4 @@
+-#if defined(ARM64_BOARD_CONFIG_SWEET)
++#if defined(ARM64_BOARD_CONFIG_SWEET) || defined(ARM64_BOARD_CONFIG_CURTANA)
+ SECURITY_READ_ONLY_LATE(uint32_t) sweet_vtimer_intid = SWEET_VTIMER_INTID;
+ #else
+ static uint32_t sweet_vtimer_intid;
+@@ -19,4 +19,4 @@
+         sweet_vtimer_intid = intid;
+         kprintf("GIC: virtual timer INTID %u\n", sweet_vtimer_intid);
+     }
+-#endif /* SWEET */
++#endif /* SWEET || CURTANA */
+ #endif

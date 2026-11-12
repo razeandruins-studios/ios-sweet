@@ -61,7 +61,7 @@
 +
 +#include <pexpert/arm64/board_config.h>
 +
-+#if defined(SWEET)
++#if defined(SWEET) || defined(CURTANA)
 +#include <IOKit/IOMemoryDescriptor.h>
 +#include <IOKit/IOBufferMemoryDescriptor.h>
 +#include <libkern/c++/OSObject.h>
@@ -112,7 +112,7 @@
 +/* Send right for the surface in task (IOSurfaceLookupFromMachPort). */
 +mach_port_name_t sweet_surface_port_in_task(SweetSurface *surface, task_t task);
 +
-+#endif /* SWEET */
++#endif /* SWEET || CURTANA */
 +#endif /* _SWEET_SURFACE_H */
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetSurface.cpp
@@ -146,7 +146,7 @@
 + */
 +#include "SweetSurface.h"
 +
-+#if defined(SWEET)
++#if defined(SWEET) || defined(CURTANA)
 +#include <IOKit/IOService.h>
 +#include <IOKit/IOUserClient.h>
 +#include <IOKit/IOKitKeys.h>
@@ -988,7 +988,7 @@
 +	*targetP = this;
 +	return &sweet_surface_traps[index];
 +}
-+#endif /* SWEET */
++#endif /* SWEET || CURTANA */
 --- /dev/null
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -0,0 +1,455 @@
@@ -1025,7 +1025,7 @@
 + */
 +#include "SweetSurface.h"
 +
-+#if defined(SWEET)
++#if defined(SWEET) || defined(CURTANA)
 +#include <IOKit/IOService.h>
 +#include <IOKit/IOUserClient.h>
 +#include <IOKit/IOKitKeys.h>
@@ -1446,4 +1446,4 @@
 +	}
 +	return ret;
 +}
-+#endif /* SWEET */
++#endif /* SWEET || CURTANA */
