@@ -28,14 +28,14 @@
 Creating curtana-specific adaptations:
 1. ✅ `tools/mkadt.py` — updated for curtana (curtana-io, curtana-fbcon, xiaomi,curtana/qcom,sm7125 compat)
 2. ✅ Memory sizing — MEM_SIZE adjusted for ~3.6 GB (low bank starts at 0xb0000000)
-3. ✅ Kernel patches — all 50+ sweet patches extended with `|| defined(CURTANA)` guards; 4 dedicated curtana patches added (0092-0096)
-4. ✅ **First CURTANA kernel built via GitHub Actions CI**
-   - Run: https://github.com/razeandruins-studios/ios-sweet/actions/runs/43213151467
-   - Commit: `de15ea8` (macos-13→15 fix) + `1d73d52` (comment update)
-   - Kernel: `kernel.development.sweet` (17 MB, Mach-O 64-bit arm64)
-   - SHA-256: `b7f027674c8edc74d7bf76f5a9ed2a4bfc7b65dfa44efa21f4df154e227549a5`
-   - All 11 build steps passed in ~11 minutes
-5. 🔲 Next: Generate ADT and prepare boot image for device test
+3. ✅ Kernel patches — all 50+ sweet patches extended with `|| defined(CURTANA)` guards; broken patches deleted
+4. 🔲 **CURTANA kernel build in GitHub Actions queue**
+   - Commit `4361989` adds CURTANA to MakeInc.def, deletes broken 0092-0096 patches
+   - Build run #43229031860 — job assigned but stuck in "queued" (no runner allocated)
+   - Previous runs cancelled due to queued timeout: #43226554093, #43228810899
+   - CI workflow: .github/workflows/xnu.yml with `-f machine_config=CURTANA`
+   - Root cause of earlier failure: CURTANA not in SUPPORTED_ARM64_MACHINE_CONFIGS (fixed)
+5. 🔲 Next: Wait for runner allocation → build completes → generate ADT + boot image → fastboot boot
 
 ## Known facts worth verifying
 - [ ] Touch IC model and I2C address (not found in adb shell as non-root)
