@@ -28,15 +28,21 @@
 Creating curtana-specific adaptations:
 1. ✅ `tools/mkadt.py` — updated for curtana (curtana-io, curtana-fbcon, xiaomi,curtana/qcom,sm7125 compat)
 2. ✅ Memory sizing — MEM_SIZE adjusted for ~3.6 GB (low bank starts at 0xb0000000)
-3. 🔄 Kernel patches being prepared: minimal subset targeting:
-   - `ARM64_BOARD_CONFIG_SWEET` → `ARM64_BOARD_CONFIG_CURTANA` in new patches
-   - USB gadget strings: "Sweet iOS" → "Curtsan iOS"
-   - FB con name: `sweet-fbcon` → `curtana-fbcon`
-   - DT compatible: `xiaomi,sweet` → `xiaomi,curtana`
-4. 🔲 Next: Build first kernel via GitHub Actions CI
+3. ✅ Kernel patches — all 50+ sweet patches extended with `|| defined(CURTANA)` guards; 4 dedicated curtana patches added (0092-0096)
+4. ✅ **First CURTANA kernel built via GitHub Actions CI**
+   - Run: https://github.com/razeandruins-studios/ios-sweet/actions/runs/43213151467
+   - Commit: `de15ea8` (macos-13→15 fix) + `1d73d52` (comment update)
+   - Kernel: `kernel.development.sweet` (17 MB, Mach-O 64-bit arm64)
+   - SHA-256: `b7f027674c8edc74d7bf76f5a9ed2a4bfc7b65dfa44efa21f4df154e227549a5`
+   - All 11 build steps passed in ~11 minutes
+5. 🔲 Next: Generate ADT and prepare boot image for device test
 
 ## Known facts worth verifying
 - [ ] Touch IC model and I2C address (not found in adb shell as non-root)
 - [ ] GENI SE7 register base (likely 0xac0000 + offset on qupv3_1)
 - [ ] FB base still valid at 0x9c000000 on SM7125 (same reserved-memory pattern)
 - [ ] Whether UFS read works immediately (same address, different SoC)
+
+## CI lesson learned
+- GitHub retired macOS 14 runners on November 2, 2026 → all `runs-on: macos-14` dispatches were instantly cancelled with "configuration not supported" error
+- Switched to `macos-15` (Xcode 16); iig ABI compatibility unknown — will know after first boot attempt
