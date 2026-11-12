@@ -36,7 +36,7 @@ jobs:
   build:
     # macOS 15 ships Xcode 16.x; iig must match the xnu-8796 IORPC ABI
     # (Xcode 16's iig emits IORPC.kernelContent, which this xnu lacks — verified with macOS 14/Xcode 15 fallback logic)
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
