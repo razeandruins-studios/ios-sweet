@@ -29,13 +29,13 @@ Creating curtana-specific adaptations:
 1. ✅ `tools/mkadt.py` — updated for curtana (curtana-io, curtana-fbcon, xiaomi,curtana/qcom,sm7125 compat)
 2. ✅ Memory sizing — MEM_SIZE adjusted for ~3.6 GB (low bank starts at 0xb0000000)
 3. ✅ Kernel patches — all 50+ sweet patches extended with `|| defined(CURTANA)` guards; broken patches deleted
-4. 🔲 **CURTANA kernel build in GitHub Actions queue**
-   - Commit `4361989` adds CURTANA to MakeInc.def, deletes broken 0092-0096 patches
-   - Build run #43229031860 — job assigned but stuck in "queued" (no runner allocated)
-   - Previous runs cancelled due to queued timeout: #43226554093, #43228810899
-   - CI workflow: .github/workflows/xnu.yml with `-f machine_config=CURTANA`
-   - Root cause of earlier failure: CURTANA not in SUPPORTED_ARM64_MACHINE_CONFIGS (fixed)
-5. 🔲 Next: Wait for runner allocation → build completes → generate ADT + boot image → fastboot boot
+4. 🔄 **CURTANA kernel build**
+   - Commit `2b617cb` (pushed 2026-11-12): rewrites patch 0004 with correct unified diff headers against upstream xnu-8796.141.3
+     - Root cause of earlier CI failures: stale `index <sha>..<sha>` git headers referencing non-existent objects caused `corrupt patch at line 23`; dxb silently skipped the whole patch so CURTANA was never added to SUPPORTED_ARM64_MACHINE_CONFIGS, SWEET.h was never created, cascading into downstream failures
+     - Regenerated 0004 as a clean `git diff HEAD` against fresh xnu-8796.141.3 — all 81 patches apply cleanly locally
+   - Previous builds failed for unrelated reasons (patches 0031/0039/0041/0070 pre-existing issues); patch 0004 was the blocking CURTANA issue
+   - Local verification passed: `for p in *.patch; do git apply "$p"; done` → all 81 green
+5. 🔲 Next: Monitor CI run #… → download kernel → generate ADT + boot.img → fastboot boot on device
 
 ## Known facts worth verifying
 - [ ] Touch IC model and I2C address (not found in adb shell as non-root)
@@ -46,3 +46,4 @@ Creating curtana-specific adaptations:
 ## CI lesson learned
 - GitHub retired macOS 14 runners on November 2, 2026 → all `runs-on: macos-14` dispatches were instantly cancelled with "configuration not supported" error
 - Switched to `macos-15` (Xcode 16); iig ABI compatibility unknown — will know after first boot attempt
+- Patch files must have valid `index <commit-sha>..<work-tree-sha>` headers matching upstream commit SHAs; stale/shallow headers cause silent skip via `git apply --check` corruption
