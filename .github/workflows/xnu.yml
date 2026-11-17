@@ -11,7 +11,7 @@ on:
         default: DEVELOPMENT
       machine_config:
         description: xnu MACHINE_CONFIG (SWEET or CURTANA)
-        default: "SWEET"
+        default: "CURTANA"
       keep_going:
         description: make -k (collect all compile errors in one run)
         default: "true"
@@ -79,7 +79,8 @@ jobs:
         working-directory: dxb
         env:
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
-        run: bash build.sh || true
+        timeout-minutes: 60
+        run: bash build.sh -k
 
       - name: Package build tree
         if: always()
@@ -106,6 +107,7 @@ jobs:
       - name: Inspect KDK support libs
         if: always()
         run: |
+          set -e
           mkdir -p out/kdk-libs
           for lib in /Library/Developer/KDKs/*/System/Library/KernelSupport/lib*.a; do
             [ -e "$lib" ] || continue
@@ -119,6 +121,7 @@ jobs:
       - name: Collect
         if: always()
         run: |
+          set -e
           mkdir -p out
           cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
           ls -la out
