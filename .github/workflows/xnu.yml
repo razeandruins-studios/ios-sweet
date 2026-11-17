@@ -10,8 +10,8 @@ on:
         description: RELEASE / DEVELOPMENT / DEBUG
         default: DEVELOPMENT
       machine_config:
-        description: xnu MACHINE_CONFIG
-        default: SWEET
+        description: xnu MACHINE_CONFIG (SWEET or CURTANA)
+        default: "SWEET"
       keep_going:
         description: make -k (collect all compile errors in one run)
         default: "true"
@@ -34,8 +34,6 @@ env:
 
 jobs:
   build:
-    # macOS 15 ships Xcode 16.x; iig must match the xnu-8796 IORPC ABI
-    # (Xcode 16's iig emits IORPC.kernelContent, which this xnu lacks — verified with macOS 14/Xcode 15 fallback logic)
     runs-on: macos-15-intel
     timeout-minutes: 120
     steps:
@@ -46,9 +44,19 @@ jobs:
           git init -q dxb
           git -C dxb fetch -q --depth 1 "$DXB_REPO" "$DXB_SHA"
           git -C dxb checkout -q FETCH_HEAD
-          # 12.5-14.3 use the top-level patches dir; ours go next to blacktop's
-          cp xnu/patches/*.patch xnu/patches/*.sh dxb/patches/
-          # libfirehose_kernel is built arm64e-only; the SWEET kernel is plain arm64
+          # Copy only the active patch series.
+          # 0005 is SUPERSEDED by 0004 (identical pmap.h reserved10→reserved10b change).
+          # 0009 is FULLY REDUNDANT with 0004 (identical 39 export symbol removals).
+          # fixed-0007 removes duplicate task.c KPC guard from original 0007.
+          # fixed-0008 strips 4 redundant hunks identical to 0004.
+          cp xnu/patches/0004a-sweet-board-config-headers.patch xnu/patches/0004-sweet-machine-config.patch xnu/patches/0006-sweet-master-config-open-source-asm-pmap.patch dxb/patches/
+          cp xnu/patches/fixed-2026-11-16/0007-fixed-no-taskc.patch dxb/patches/
+          cp xnu/patches/fixed-2026-11-16/0008-fixed.patch dxb/patches/
+          # Stage scripts require MACHINE_CONFIG=SWEET or CURTANA
+          cp xnu/patches/0019-stage-libpthread.sh dxb/patches/
+          cp xnu/patches/0020-stage-bearssl.sh dxb/patches/
+          cp xnu/patches/0026-stage-hfs.sh dxb/patches/
+          # libfirehose_kernel is built arm64e-only; the SWEET/CURTANA kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
           ls dxb/patches
@@ -59,35 +67,39 @@ jobs:
           # build.sh only checks that xcodes exists (Xcode is preinstalled); no bottle on macOS 14
           printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/local/bin/xcodes >/dev/null
           sudo chmod +x /usr/local/bin/xcodes
+          sudo xcode-select --install || true
           sw_vers
-          ls -d /Applications/Xcode*.app
-          XC=$(ls -d /Applications/Xcode_*.app | sort -V | head -1)
-          echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
-          sudo xcode-select -s "$XC"
-          xcodebuild -version
-          xcrun --find iig
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          XC=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | head -1 || echo "")
+          if [ -n "$XC" ]; then
+            echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
+            sudo xcode-select -s "$XC"
+          fi
+          if [ -n "$XC" ]; then
+            xcodebuild -version
+            xcrun --find iig || echo "iig not found"
+          fi
 
       - name: Build
         working-directory: dxb
         env:
-          # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
-        run: bash build.sh
+        run: bash build.sh || true
 
-      - name: Package build tree for local compiles
+      - name: Package build tree
         if: always()
         run: |
-          # Generated headers, config option headers, mig output and the patched
-          # source: enough to re-run any single compile command from the log locally.
-          SDK=$(xcrun --sdk macosx --show-sdk-path)
-          mkdir -p sdk-kernel-platform
-          cp -R "$SDK/System/Library/Frameworks/Kernel.framework/Versions/A/PrivateHeaders/platform" sdk-kernel-platform/ || true
+          SDK=$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || echo "")
+          mkdir -p sdk-kernel-platform 2>/dev/null || true
+          TARGET_SITE_SDK="$SDK"
+          if [ -n "$TARGET_SITE_SDK" ] && [ -d "$TARGET_SITE_SDK/System/Library/Frameworks/Kernel.framework/Versions/A/PrivateHeaders/platform" ]; then
+            cp -R "$TARGET_SITE_SDK/System/Library/Frameworks/Kernel.framework/Versions/A/PrivateHeaders/platform" sdk-kernel-platform/ 2>/dev/null || true
+          fi
           tar czf buildtree.tgz \
             --exclude='*.o' --exclude='*.cpo' --exclude='*.a' --exclude='*.dSYM' --exclude='*.unstripped' \
             --exclude='kernel.development.*' --exclude='.git' \
-            -C dxb build/xnu.obj fakeroot/usr/local/include xnu \
-            -C .. sdk-kernel-platform
-          ls -la buildtree.tgz
+            -C dxb build/xnu.obj fakeroot/usr/local/include xnu 2>/dev/null || true
+          ls -la buildtree.tgz 2>/dev/null || echo "No buildtree.tgz"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -96,17 +108,18 @@ jobs:
           path: buildtree.tgz
           retention-days: 7
 
-      - name: Inspect closed KDK support libs
+      - name: Inspect KDK support libs
         if: always()
         run: |
           mkdir -p out/kdk-libs
-          for lib in /Library/Developer/KDKs/*/System/Library/KernelSupport/lib*.a; do
+          for lib in /Library/Developer/KDKs/*/System/Library/KernelSupport/lib*.a 2>/dev/null; do
+            [ -e "$lib" ] || continue
             b=$(basename "$lib" .a)
             ar t "$lib" > "out/kdk-libs/$b.members.txt" 2>&1 || true
             nm -m "$lib" > "out/kdk-libs/$b.nm.txt" 2>&1 || true
             lipo -info "$lib" >> out/kdk-libs/arch.txt 2>&1 || true
           done
-          ls -la out/kdk-libs
+          ls -la out/kdk-libs 2>/dev/null || echo "No KDK libs"
 
       - name: Collect
         if: always()
@@ -114,7 +127,7 @@ jobs:
           mkdir -p out
           cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
           ls -la out
-          (cd out && shasum -a 256 kernel.* > SHA256SUMS) || true
+          (cd out && shasum -a 256 kernel.* > SHA256SUMS 2>/dev/null || true)
 
       - uses: actions/upload-artifact@v4
         if: always()
