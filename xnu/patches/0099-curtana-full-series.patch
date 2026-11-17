@@ -32579,7 +32579,7 @@ new file mode 100644
 index 000000000..8fbd18974
 --- /dev/null
 +++ b/pexpert/pexpert/arm64/SWEET.h
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,32 @@
 +/*
 + * Copyright (c) 2023 Apple Inc. All rights reserved.
 + */
@@ -32608,6 +32608,10 @@ index 000000000..8fbd18974
 +#define SWEET_VTIMER_INTID        27
 +#define SWEET_IPI_SGI             1
 +#define SWEET_UART_BASE           0x010C0000
++#define SWEET_UART_IRQ            118
++#define SWEET_SERIAL_BAUD         115200
++
++#endif /* _PEXPERT_ARM64_SWEET_H_ */
 diff --git a/pexpert/pexpert/arm64/board_config.h b/pexpert/pexpert/arm64/board_config.h
 index 945453413..6479a8f20 100644
 --- a/pexpert/pexpert/arm64/board_config.h
