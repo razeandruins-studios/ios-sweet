@@ -44,14 +44,36 @@ jobs:
           git init -q dxb
           git -C dxb fetch -q --depth 1 "$DXB_REPO" "$DXB_SHA"
           git -C dxb checkout -q FETCH_HEAD
-          # Copy only the active patch series.
-          # 0005 is SUPERSEDED by 0004 (identical pmap.h reserved10→reserved10b change).
-          # 0009 is FULLY REDUNDANT with 0004 (identical 39 export symbol removals).
-          # fixed-0007 removes duplicate task.c KPC guard from original 0007.
-          # fixed-0008 strips 4 redundant hunks identical to 0004.
-          cp xnu/patches/0004a-sweet-board-config-headers.patch xnu/patches/0004-sweet-machine-config.patch xnu/patches/0006-sweet-master-config-open-source-asm-pmap.patch dxb/patches/
+          # darwin-xnu-build has no patches/ directory, so copy all xnu patches there
+          cp xnu/patches/0001-new-clang-drop-removed-auto-var-init-flag.patch dxb/patches/
+          cp xnu/patches/0002-new-clang-backport-UIO_STACKBUF.patch dxb/patches/
+          cp xnu/patches/0003-sweet-framebuffer-serial-console.patch dxb/patches/
+          cp xnu/patches/0004-sweet-machine-config.patch dxb/patches/
+          cp xnu/patches/0004a-sweet-board-config-headers.patch dxb/patches/
+          cp xnu/patches/0006-sweet-master-config-open-source-asm-pmap.patch dxb/patches/
+          cp xnu/patches/0007-sweet-stub-apple-internal-headers.patch dxb/patches/
           cp xnu/patches/fixed-2026-11-16/0007-fixed-no-taskc.patch dxb/patches/
+          cp xnu/patches/0008-sweet-fill-closed-lib-gaps-kpc-stub.patch dxb/patches/
           cp xnu/patches/fixed-2026-11-16/0008-fixed.patch dxb/patches/
+          cp xnu/patches/00011-sweet-physmap-alignment-padding.patch dxb/patches/
+          cp xnu/patches/00012-sweet-keep-debug-console-after-ttbr0.patch dxb/patches/
+          cp xnu/patches/00013-sweet-kmem-rng-without-corecrypto.patch dxb/patches/
+          cp xnu/patches/00014-sweet-kernel-hmac-prng.patch dxb/patches/
+          cp xnu/patches/00015-sweet-unavailable-trust-cache-runtime.patch dxb/patches/
+          cp xnu/patches/00016-sweet-device-tree-platform-expert.patch dxb/patches/
+          cp xnu/patches/00018-sweet-boot-cpu-driver.patch dxb/patches/
+          cp xnu/patches/00019-sweet-builtin-pthread.patch dxb/patches/
+          cp xnu/patches/00020-sweet-portable-aes-cbc.patch dxb/patches/
+          cp xnu/patches/00021-sweet-mockfs-ramdisk-root.patch dxb/patches/
+          cp xnu/patches/00022-sweet-ramdisk-root-without-iomedia.patch dxb/patches/
+          cp xnu/patches/00023-sweet-builtin-sha256-for-libkern.patch dxb/patches/
+          cp xnu/patches/00024-sweet-mockfs-virtual-ramdisk-io.patch dxb/patches/
+          cp xnu/patches/00025-sweet-builtin-amfi-no-entitlements.patch dxb/patches/
+          cp xnu/patches/00026-sweet-builtin-hfs.patch dxb/patches/
+          cp xnu/patches/00027-sweet-bearssl-md5.patch dxb/patches/
+          cp xnu/patches/00028-sweet-ufs-root-device.patch dxb/patches/
+          cp xnu/patches/00029-sweet-unsealed-root-volume.patch dxb/patches/
+          cp xnu/patches/00030-sweet-ufs-writes.pat dxb/patches/
           # Stage scripts require MACHINE_CONFIG=SWEET or CURTANA
           cp xnu/patches/0019-stage-libpthread.sh dxb/patches/
           cp xnu/patches/0020-stage-bearssl.sh dxb/patches/
