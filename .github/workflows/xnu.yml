@@ -30,7 +30,7 @@ env:
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
   MACOS_VERSION: ${{ inputs.macos_version || '13.5' }}
   KERNEL_CONFIG: ${{ inputs.kernel_config || 'DEVELOPMENT' }}
-  MACHINE_CONFIG: ${{ inputs.machine_config || 'SWEET' }}
+  MACHINE_CONFIG: ${{ inputs.machine_config || 'CURTANA' }}
 
 jobs:
   build:
@@ -123,13 +123,34 @@ jobs:
         run: |
           set -e
           mkdir -p out
-          cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
-          ls -la out
-          (cd out && shasum -a 256 kernel.* > SHA256SUMS 2>/dev/null || true)
+          # Ensure source directory exists
+          if [ ! -d dxb/fakeroot/System/Library/Kernels ]; then
+            echo "❌ Kernel source directory missing: dxb/fakeroot/System/Library/Kernels"
+            exit 1
+          fi
+          cp -R dxb/fakeroot/System/Library/Kernels/. out/
+          # Verify kernel files exist and are non-empty
+          kernel_files=$(find out -maxdepth 1 -name "kernel.*" -type f | wc -l)
+          if [ "$kernel_files" -eq 0 ]; then
+            echo "❌ No kernel files found after build"
+            ls -la out
+            exit 1
+          fi
+          # Verify each file is non-empty
+          for f in out/kernel.*; do
+            if [ ! -s "$f" ]; then
+              echo "❌ Kernel file empty: $f"
+              exit 1
+            fi
+          done
+          ls -lh out
+          # Generate checksums only after validation
+          (cd out && shasum -a 256 kernel.* > SHA256SUMS)
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: xnu-kernel
           path: out/
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 7
