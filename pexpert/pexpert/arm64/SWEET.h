@@ -29,9 +29,4 @@
 #define SWEET_UART_IRQ            118
 #define SWEET_SERIAL_BAUD         115200
 
-#define SWEET_SMP_MAX_CPUS 8
-
-/* No monitor for this board - disables WFI power gating checks */
-#define NO_MONITOR                1
-
 #endif /* _PEXPERT_ARM64_SWEET_H_ */
