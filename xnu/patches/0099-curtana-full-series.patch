@@ -4433,10 +4433,13 @@ new file mode 100644
 index 000000000..bd3e38b36
 --- /dev/null
 +++ b/bsd/pthread/sweet_pthread_init.c
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,29 @@
 +/* Built-in provider: Apple libpthread-514.100.2, paired with xnu-8796.141.3. */
 +#if defined(ARM64_BOARD_CONFIG_SWEET) || defined(ARM64_BOARD_CONFIG_CURTANA)
 +#include "sweet_pthread_compat.h"
++/* Must precede the kern_init.c inclusion so <kern/debug.h>'s
++ * #ifndef XNU_KERNEL_PRIVATE guard skips the sdk-only TargetConditionals.h. */
++#define XNU_KERNEL_PRIVATE 1
 +#include "sweet_libpthread/kern/kern_init.c"
 +
 +/* Keep the provider's full layout within the kernel's reserved storage. */

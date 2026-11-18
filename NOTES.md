@@ -135,3 +135,204 @@ Failure breakdown:
 - All Sweet*.cpp, sweet_*.c, and config files present
 - HFS staging works (missing only hfs_catalog.c which is staged by .sh)
 - Ready for kernel build phase
+
+## 2026-11-18 Patch Corruption Fix — COMPLETED
+### Problem
+Commit c8d6e9b edited the consolidated patch in-place by removing the duplicate `touch_msg` from `sweet_touch.c` and adding `SWEET_SMP_MAX_CPUS`, but the edit broke the patch structure. The second touch_msg block (lines 1291–1306 in the patch) was removed without adjusting the hunk header (`@@ -0,0 +1,676 @@` stayed 676 instead of becoming 660). This caused GNU patch 2.8 to emit `malformed patch at line 1645/1646` when applying to a clean tree.
+
+### Root Cause
+The c8d6e9b edit removed 16 lines from the middle of the sweet_touch.c new-file section without updating the hunk header's count. Downstream hunks (including sweet_ufs.c) were unaffected by the content removal but the corrupted header caused GNU patch's internal state machine to misparse the boundary between hunks.
+
+### Fix Applied
+1. Reverted patch to pre-c8d6e9b state via `git checkout HEAD~1 -- xnu/patches/...` (the working pristine copy).
+2. Applied three surgical edits correctly this time using Python string manipulation on the raw patch file:
+   - **Fix 1**: Removed the duplicate `static int touch_msg(...)` block (16 lines including trailing blank). Updated hunk header from `@@ -0,0 +1,676 @@` to `@@ -0,0 +1,660 @@`.
+   - **Fix 2**: Added `+#define SWEET_SMP_MAX_CPUS 8` before `#endif /* _PEXPERT_ARM64_SWEET_H_ */` in the SWEET.h new-file hunk. This resolves the undefined identifier used in `machine_routines.c` and `SweetCPU.cpp`.
+   - **Fix 3**: Verified `cpu.c`'s `#else` at line 351 is the legitimate `#else` for `#if USE_APPLEARMSMP` — not a stray. No action needed; c8d6e9b's intended third change does not apply here.
+
+### Verification
+- Fresh clone + `patch -p1` applied cleanly with zero rejections.
+- `bsd/dev/sweet_touch.c`: 660 lines, exactly 1 `touch_msg` definition (was 2).
+- `bsd/dev/sweet_ufs.c`: 823 lines intact.
+- `pexpert/pexpert/arm64/SWEET.h`: line 32 has `#define SWEET_SMP_MAX_CPUS 8`.
+- `osfmk/arm64/machine_routines.c`: uses `SWEET_SMP_MAX_CPUS` at lines 958, 962–963 — now resolved.
+- `iokit/Kernel/arm/SweetCPU.cpp`: uses `SWEET_SMP_MAX_CPUS` at lines 78, 132 — now resolved.
+- Total diff sections: 151 (unchanged).
+
+## 2026-11-18 SWEET.h Hunk Header Fix — COMPLETED
+### Problem
+CI run #44229327856 failed at `installhdrs` with:
+```
+unifdef: SWEET.h: 33: Premature EOF (#if line 4 depth 1)
+Parse failure for SWEET.h
+make: *** [installhdrs] Error 2
+```
+
+Root cause: two bugs in the SWEET.h new-file hunk of `0099-curtana-full-series.patch`:
+1. **Hunk header undercount**: `@@ -0,0 +1,32 @@` but actual content was 34 lines
+2. **Malformed blank line**: line 32600 was bare `\n` instead of `+\n`, breaking unified diff format
+
+GNU patch silently truncated last 2 lines (blank line + `#endif`), leaving unmatched `#ifndef` → `unifdef` parse error during `installhdrs`.
+
+### Root Cause Chain
+```
+Header claims 32 lines → GNU patch truncates last 2 → missing #endif
+→ unifdef sees premature EOF on #ifndef _PEXPERT_ARM64_SWEET_H_
+→ make installhdrs fails → CI build fails
+```
+
+### Fix Applied
+Python binary edit on `xnu/patches/0099-curtana-full-series.patch`:
+- Changed hunk header: `@@ -0,0 +1,32 @@` → `@@ -0,0 +1,34 @@`
+- Added missing `+` prefix to blank line before `#endif`
+
+### Verification
+- Fresh xnu clone + consolidated patch: `patch -p1 --forward` exits 0
+- `SWEET.h`: 34 lines, contains both `#define SWEET_SMP_MAX_CPUS 8` and `#endif /* _PEXPERT_ARM64_SWEET_H_ */`
+- `board_config.h`: correctly includes `SWEET.h` when `ARM64_BOARD_CONFIG_CURTANA` defined
+- `machine_routines.c`: `SWEET_SMP_MAX_CPUS` resolved at lines 1142, 1146-1147
+- `sweet_touch.c`: 660 lines, single `touch_msg` def
+- `sweet_ufs.c`: 823 lines intact
+- Pre-existing 63 context-drift failures unchanged (no new regressions introduced)
+
+
+
+## 2026-11-18 Patch Corruption Fix — COMPLETED
+### Problem
+Commit c8d6e9b edited the consolidated patch in-place by removing the duplicate `touch_msg` from `sweet_touch.c` and adding `SWEET_SMP_MAX_CPUS`, but the edit broke the patch structure. The second touch_msg block (lines 1291–1306 in the patch) was removed without adjusting the hunk header (`@@ -0,0 +1,676 @@` stayed 676 instead of becoming 660). This caused GNU patch 2.8 to emit `malformed patch at line 1645/1646` when applying to a clean tree.
+
+### Root Cause
+The c8d6e9b edit removed 16 lines from the middle of the sweet_touch.c new-file section without updating the hunk header's count. Downstream hunks (including sweet_ufs.c) were unaffected by the content removal but the corrupted header caused GNU patch's internal state machine to misparse the boundary between hunks.
+
+### Fix Applied
+1. Reverted patch to pre-c8d6e9b state via `git checkout HEAD~1 -- xnu/patches/...` (the working pristine copy).
+2. Applied three surgical edits correctly this time using Python string manipulation on the raw patch file:
+   - **Fix 1**: Removed the duplicate `static int touch_msg(...)` block (16 lines including trailing blank). Updated hunk header from `@@ -0,0 +1,676 @@` to `@@ -0,0 +1,660 @@`.
+   - **Fix 2**: Added `+#define SWEET_SMP_MAX_CPUS 8` before `#endif /* _PEXPERT_ARM64_SWEET_H_ */` in the SWEET.h new-file hunk. This resolves the undefined identifier used in `machine_routines.c` and `SweetCPU.cpp`.
+   - **Fix 3**: Verified `cpu.c`'s `#else` at line 351 is the legitimate `#else` for `#if USE_APPLEARMSMP` — not a stray. No action needed; c8d6e9b's intended third change does not apply here.
+
+### Verification
+- Fresh clone + `patch -p1` applied cleanly with zero rejections.
+- `bsd/dev/sweet_touch.c`: 660 lines, exactly 1 `touch_msg` definition (was 2).
+- `bsd/dev/sweet_ufs.c`: 823 lines intact.
+- `pexpert/pexpert/arm64/SWEET.h`: line 32 has `#define SWEET_SMP_MAX_CPUS 8`.
+- `osfmk/arm64/machine_routines.c`: uses `SWEET_SMP_MAX_CPUS` at lines 958, 962–963 — now resolved.
+- `iokit/Kernel/arm/SweetCPU.cpp`: uses `SWEET_SMP_MAX_CPUS` at lines 78, 132 — now resolved.
+- Total diff sections: 151 (unchanged).
+
+## 2026-11-18 SWEET.h Hunk Header Fix — COMPLETED
+### Problem
+CI run #44229327856 failed at `installhdrs` with:
+```
+unifdef: SWEET.h: 33: Premature EOF (#if line 4 depth 1)
+Parse failure for SWEET.h
+make: *** [installhdrs] Error 2
+```
+
+Root cause: two bugs in the SWEET.h new-file hunk of `0099-curtana-full-series.patch`:
+1. **Hunk header undercount**: `@@ -0,0 +1,32 @@` but actual content was 34 lines
+2. **Malformed blank line**: line 32600 was bare `\n` instead of `+\n`, breaking unified diff format
+
+GNU patch silently truncated last 2 lines (blank line + `#endif`), leaving unmatched `#ifndef` → `unifdef` parse error during `installhdrs`.
+
+### Root Cause Chain
+```
+Header claims 32 lines → GNU patch truncates last 2 → missing #endif
+→ unifdef sees premature EOF on #ifndef _PEXPERT_ARM64_SWEET_H_
+→ make installhdrs fails → CI build fails
+```
+
+### Fix Applied
+Python binary edit on `xnu/patches/0099-curtana-full-series.patch`:
+- Changed hunk header: `@@ -0,0 +1,32 @@` → `@@ -0,0 +1,34 @@`
+- Added missing `+` prefix to blank line before `#endif`
+
+### Verification
+- Fresh xnu clone + consolidated patch: `patch -p1 --forward` exits 0
+- `SWEET.h`: 34 lines, contains both `#define SWEET_SMP_MAX_CPUS 8` and `#endif /* _PEXPERT_ARM64_SWEET_H_ */`
+- `board_config.h`: correctly includes `SWEET.h` when `ARM64_BOARD_CONFIG_CURTANA` defined
+- `machine_routines.c`: `SWEET_SMP_MAX_CPUS` resolved at lines 1142, 1146-1147
+- `sweet_touch.c`: 660 lines, single `touch_msg` def
+- `sweet_ufs.c`: 823 lines intact
+- Pre-existing 63 context-drift failures unchanged (no new regressions introduced)
+
+
+## 2026-11-18 TargetConditionals.h Build Failure Fix — READY TO COMMIT
+### Problem
+CI run #44232701579 failed at compile stage:
+```
+fatal error: 'TargetConditionals.h' file not found
+#include <TargetConditionals.h>
+         ^~~~~~~~~~~~~~~~~~~~~~~
+```
+Affected: sweet_pthread_init.o, sweet_pthread_support.o, sweet_pthread_synch.o, vm_map.o
+
+### Root Cause
+`bsd/pthread/sweet_pthread_init.c` defined `#define XNU_KERNEL_PRIVATE 1` at line 11,
+but included `sweet_libpthread/kern/kern_init.c` at line 4. The kern_init.c source
+includes `<kern/debug.h>` at line 10, and debug.h unconditionally includes
+`<TargetConditionals.h>` when `XNU_KERNEL_PRIVATE` is NOT defined (line 42-43):
+
+```c
+#ifndef XNU_KERNEL_PRIVATE
+#include <TargetConditionals.h>  /* SDK-only header */
+#endif
+```
+
+Because the #define appeared AFTER the include, the guard was inactive and the
+SDK-only header caused compilation failure in the kernel build (-nostdinc).
+
+### Investigation
+- Confirmed: only `kern_init.c` includes `<kern/debug.h>` among the sweet libpthread sources
+- `kern_support.c` and `kern_synch.c` include `<sys/kdebug.h>` instead, which does NOT transitively reach TargetConditionals.h → no fix needed there
+- Local source already fixed; patch updated from hunk +1,26 → +1,29 with newlines
+
+### Fix Applied (ready to commit)
+1. **Local source**: `bsd/pthread/sweet_pthread_init.c` — moved `#define XNU_KERNEL_PRIVATE 1` to BEFORE `#include "sweet_libpthread/kern/kern_init.c"` (line 6), after comment explaining why
+2. **Consolidated patch**: `xnu/patches/0099-curtana-full-series.patch` — same change, hunk header updated from `@@ -0,0 +1,26 @@` to `@@ -0,0 +1,29 @@`
+3. **Regenerated all untracked source files** from patch to eliminate drift from manual editing (sweet_touch.c had duplicate touch_msg due to accumulated edits)
+4. All 81 new-file sections verified: hunk counts match, local sources match patch output exactly
+
+### Pre-commit verification
+- sweet_touch.c: 660 lines, 1 touch_msg def ✅
+- sweet_pthread_init.c: 29 lines, XNU_KERNEL_PRIVATE at line 6 ✅
+- SWEET.h: complete with SWEET_SMP_MAX_CPUS and #endif ✅
+- pe_serial.c: sweet_early_mark calls present at lines 838, 842 ✅
+- serial_console.c: sweet_console_muted variable and usage present ✅
+
+### Problem
+CI run #44232701579 failed at compile stage:
+```
+fatal error: 'TargetConditionals.h' file not found
+#include <TargetConditionals.h>
+         ^~~~~~~~~~~~~~~~~~~~~~~
+```
+Affected: sweet_pthread_init.o, sweet_pthread_support.o, sweet_pthread_synch.o, vm_map.o
+
+### Root Cause
+`bsd/pthread/sweet_pthread_init.c` defined `#define XNU_KERNEL_PRIVATE 1` at line 11,
+but included `sweet_libpthread/kern/kern_init.c` at line 4. The kern_init.c source
+includes `<kern/debug.h>` at line 10, and debug.h unconditionally includes
+`<TargetConditionals.h>` when `XNU_KERNEL_PRIVATE` is NOT defined (line 42-43):
+
+```c
+#ifndef XNU_KERNEL_PRIVATE
+#include <TargetConditionals.h>  /* SDK-only header */
+#endif
+```
+
+Because the #define appeared AFTER the include, the guard was inactive and the
+SDK-only header caused compilation failure in the kernel build (-nostdinc).
+
+### Investigation
+- Confirmed: only `kern_init.c` includes `<kern/debug.h>` among the sweet libpthread sources
+- `kern_support.c` and `kern_synch.c` include `<sys/kdebug.h>` instead, which does NOT transitively reach TargetConditionals.h → no fix needed there
+- Local source already fixed; patch updated from hunk +1,26 → +1,29 with newlines
+
+### Fix Applied (uncommitted)
+1. **Local source**: `bsd/pthread/sweet_pthread_init.c` — moved `#define XNU_KERNEL_PRIVATE 1` to BEFORE `#include "sweet_libpthread/kern/kern_init.c"` (line 6), after comment explaining why
+2. **Consolidated patch**: `xnu/patches/0099-curtana-full-series.patch` — same change, hunk header updated from `@@ -0,0 +1,26 @@` to `@@ -0,0 +1,29 @@`
+
+### Status
+Fix is in working tree but NOT yet committed or pushed. Next action: await user
+authorization to commit and trigger a new CI run.
