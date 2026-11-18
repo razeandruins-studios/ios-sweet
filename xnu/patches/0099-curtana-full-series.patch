@@ -31026,7 +31026,6 @@ index 76582da51..25e50035f 100644
 +{
 +}
 +#endif /* SWEET || CURTANA */
-+
  boolean_t
  ml_get_timer_pending(void)
  {
@@ -31252,7 +31251,6 @@ index e5336e5a1..832e81500 100644
 +	msr		SPSel, #1
 +	b		EXT(LowResetVectorBase)
 +#endif /* SWEET || CURTANA */
-+
  	.align 2
  	.globl EXT(resume_idle_cpu)
  LEXT(resume_idle_cpu)
@@ -32104,7 +32102,6 @@ index c52f0abfe..cf677eb6a 100644
 +}
 +STARTUP(EARLY_BOOT, STARTUP_RANK_FIRST, sweet_prng_startup);
 +#endif /* SWEET || CURTANA */
-+
  static void read_erandom(void * buf, size_t nbytes);
  
  /*
@@ -32176,7 +32173,6 @@ index 2927d4b48..bc7cc2efc 100644
 +	return value % bound;
 +}
 +#endif /* SWEET || CURTANA */
-+
  /*
   * This is done during EARLY_BOOT as it needs the corecrypto module to be
 - * set up.
@@ -32598,6 +32594,7 @@ index 000000000..8fbd18974
 +
 +#define SWEET_SMP_MAX_CPUS 8
 
++
 +/* No monitor for this board - disables WFI power gating checks */
 +#define NO_MONITOR                1
 +
