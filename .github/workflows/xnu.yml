@@ -125,14 +125,15 @@ jobs:
             find dxb/fakeroot/System/Library/Kernels -type f -size +1M \
               -exec cp {} out/kernel/ \; 2>/dev/null || true
           fi
-          # Strategy 2: Fallback to build obj directory (most reliable)
+          # Strategy 2: OBJROOT nested Binary/ directory (most reliable)
+          # Kernel lands at xnu.obj/DEVELOPMENT_ARM64_SWEET/Binary/kernel.* — must NOT use maxdepth 1
           if [ -z "$(ls out/kernel/ 2>/dev/null)" ]; then
-            find dxb/build/xnu.obj -maxdepth 1 -name 'kernel.*' -size +1M \
+            find dxb/build/xnu.obj -name 'kernel.*' -size +1M \
               -exec cp {} out/kernel/ \; 2>/dev/null || true
           fi
-          # Strategy 3: Check SYMROOT for any variant
+          # Strategy 3: SYMROOT fallback (any nested location)
           if [ -z "$(ls out/kernel/ 2>/dev/null)" ] && [ -d "dxb/build/xnu.sym" ]; then
-            find dxb/build/xnu.sym -maxdepth 1 -name 'kernel.*' -size +1M \
+            find dxb/build/xnu.sym -name 'kernel.*' -size +1M \
               -exec cp {} out/kernel/ \; 2>/dev/null || true
           fi
           echo "--- Kernel artifact contents ---"

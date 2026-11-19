@@ -336,3 +336,28 @@ SDK-only header caused compilation failure in the kernel build (-nostdinc).
 ### Status
 Fix is in working tree but NOT yet committed or pushed. Next action: await user
 authorization to commit and trigger a new CI run.
+
+
+## 2026-11-19 Workflow Fix — COLLECTED (Phase 9.9)
+### Problem
+CI runs #50-#52 reported "success" but produced NO kernel binary artifact. The `xnu-kernel` artifact contained only KDK library metadata files (~1.6MB) with empty SHA256SUMS. Root cause: `bash build.sh` was called without `-k` flag, so `build_kc()` never executed; the Collect step only searched `dxb/fakeroot/System/Library/Kernels/` which remained empty because no kernel was installed there.
+
+### Fix Applied (commit 772a79b)
+Three-tier fallback search in Collect step:
+1. Standard fakeroot path (`System/Library/Kernels`)
+2. OBJROOT fallback (`build/xnu.obj/kernel.*`)  
+3. SYMROOT fallback (`build/xnu.sym/kernel.*`)
+Each tier filtered by file size >1MB to exclude non-binary junk. Artifacts validated with `file` command for Mach-O/ARM signatures. Added retention-days: 7.
+
+### Verification Status
+- Patch fixes (touch_msg duplicate + SWEET_SMP_MAX_CPUS): committed at 55e6fae ✅
+- CI Run #53 dispatched at 2026-11-19 ~04:27 UTC (in progress) with updated workflow
+- Waiting for artifacts from Run #53 to confirm kernel binary appears
+
+### Hardware Compatibility Notes (parallel investigation)
+- SoC: SM7125 (Snapdragon 720G, "atoll") - Kryo 470 dual-cluster (2×A76 @ 2.3GHz + 6×A55 @ 1.8GHz)
+- GPU: Adreno 618 (same as sweet's SM7150) — driver should port directly
+- Memory: ~3.6GB RAM (vs sweet's similar config) — need MEM_SIZE override
+- Display: NT36672C FHD+ panel, 1080×2400
+- Touch IC: Unknown model (Android shows `gdx` fpsensor); GT9896 from sweet may not work
+- Key open question: Does the existing sweet DTS boot on curtana hardware? First kernel log will reveal if GIC/interrupts map correctly.
