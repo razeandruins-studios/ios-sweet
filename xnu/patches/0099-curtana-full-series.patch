@@ -31165,7 +31165,7 @@ index c40c6eac4..3cfa9e587 100644
  #include <arm/trap.h> /* for IS_ARM_GDB_TRAP() et al */
  #include <arm64/proc_reg.h>
  #include <arm64/machine_machdep.h>
-@@ -1857,6 +1858,44 @@ sleh_irq(arm_saved_state_t *state)
+@@ -1857,6 +1858,43 @@ sleh_irq(arm_saved_state_t *state)
  
  	sleh_interrupt_handler_prologue(state, DBG_INTR_TYPE_OTHER);
  
@@ -31205,7 +31205,6 @@ index c40c6eac4..3cfa9e587 100644
 +	}
 +	__builtin_arm_isb(ISB_SY);
 +#endif /* SWEET || CURTANA */
-+#else
 +
  #if USE_APPLEARMSMP
  	PE_handle_ext_interrupt();
