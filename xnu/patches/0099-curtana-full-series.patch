@@ -30535,6 +30535,27 @@ index fc2096fa0..00568d37b 100644
  #endif
  }
  
+diff --git a/osfmk/arm/pmap/pmap.c b/osfmk/arm/pmap/pmap.c
+index fc2096fa0..26bf2c11d 100644
+--- a/osfmk/arm/pmap/pmap.c
++++ b/osfmk/arm/pmap/pmap.c
+@@ -10980,8 +10980,16 @@ static_assert((_COMM_PAGE32_BASE_ADDRESS & ~ARM_TT_L2_OFFMASK) >= VM_MAX_ADDRESS)
+ /**
+  * Ensure that 64-bit devices using 4K pages can nest the commpage completely
+  * above the maximum userspace VA.
++ *
++ * For ARM_LARGE_MEMORY configurations (SWEET/CURTANA), user VA space
++ * extends beyond the commpage nesting region. The commpage is still mapped
++ * at _COMM_PAGE64_BASE_ADDRESS but lives within userspace — protected by
++ * VM reservation rather than physical isolation. Mirrors the 16KB page-size
++ * path above.
+  */
++#if !defined(ARM_LARGE_MEMORY)
+ static_assert((_COMM_PAGE64_BASE_ADDRESS & ~ARM_TT_L1_OFFMASK) >= MACH_VM_MAX_ADDRESS);
++#endif
+ #else
+ #error Nested shared page mapping is unsupported on this config
+ #endif
 diff --git a/osfmk/arm/pmap/pmap.h b/osfmk/arm/pmap/pmap.h
 index df672c65b..75f3db01a 100644
 --- a/osfmk/arm/pmap/pmap.h
