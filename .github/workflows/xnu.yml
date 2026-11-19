@@ -119,14 +119,41 @@ jobs:
       - name: Collect
         if: always()
         run: |
-          mkdir -p out
-          cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
-          ls -la out
-          (cd out && shasum -a 256 kernel.* > SHA256SUMS 2>/dev/null || true)
+          mkdir -p out/kernel
+          # Strategy 1: Standard fakeroot path from make install
+          if [ -d "dxb/fakeroot/System/Library/Kernels" ]; then
+            find dxb/fakeroot/System/Library/Kernels -type f -size +1M \
+              -exec cp {} out/kernel/ \; 2>/dev/null || true
+          fi
+          # Strategy 2: Fallback to build obj directory (most reliable)
+          if [ -z "$(ls out/kernel/ 2>/dev/null)" ]; then
+            find dxb/build/xnu.obj -maxdepth 1 -name 'kernel.*' -size +1M \
+              -exec cp {} out/kernel/ \; 2>/dev/null || true
+          fi
+          # Strategy 3: Check SYMROOT for any variant
+          if [ -z "$(ls out/kernel/ 2>/dev/null)" ] && [ -d "dxb/build/xnu.sym" ]; then
+            find dxb/build/xnu.sym -maxdepth 1 -name 'kernel.*' -size +1M \
+              -exec cp {} out/kernel/ \; 2>/dev/null || true
+          fi
+          echo "--- Kernel artifact contents ---"
+          ls -la out/kernel/ 2>/dev/null || echo "WARNING: No kernel found"
+          # Validate each file is a real Mach-O binary
+          for f in out/kernel/*; do
+            [ -f "$f" ] || continue
+            t=$(file "$f" 2>/dev/null || echo "unknown")
+            echo "  $f => $t"
+            if echo "$t" | grep -qi "arm\|mach-o\|executable\|object"; then
+              echo "  ✓ Valid kernel binary ($(du -h "$f" | cut -f1))"
+            else
+              echo "  ⚠ Possible false positive: $t"
+            fi
+          done
+          (cd out && find . -type f -exec shasum -a 256 {} + > SHA256SUMS 2>/dev/null || true)
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: xnu-kernel
           path: out/
+          retention-days: 7
           if-no-files-found: warn
