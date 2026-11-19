@@ -48,7 +48,7 @@ jobs:
           cp xnu/patches/*.patch xnu/patches/*.sh dxb/patches/
           # Remove the now-redundant individual SWEET patches; 0099 covers all their changes.
           # Keeping both causes dxbs git apply to fail on 0099 (context already consumed).
-          rm -f dxb/patches/00[0-9][0-9]-*.patch
+          find dxb/patches/ -type f -name '*.patch' ! -name '0099-curtana-full-series.patch' -delete
           # Stage scripts download external sources (libpthread, BearSSL, HFS)
           # DXB runs *.sh before *.patch, so these populate sweet_libpthread/, sweet_bearssl/, sweet_hfs/ first
           cp xnu/patches/0019-stage-libpthread.sh dxb/patches/
