@@ -45,7 +45,10 @@ jobs:
           git -C dxb fetch -q --depth 1 "$DXB_REPO" "$DXB_SHA"
           git -C dxb checkout -q FETCH_HEAD
           # Copy the consolidated CURTANA patch (151 file changes from pristine xnu-8796.141.3)
-          cp xnu/patches/0099-curtana-full-series.patch dxb/patches/
+          cp xnu/patches/*.patch xnu/patches/*.sh dxb/patches/
+          # Remove the now-redundant individual SWEET patches; 0099 covers all their changes.
+          # Keeping both causes dxbs git apply to fail on 0099 (context already consumed).
+          rm -f dxb/patches/00[0-9][0-9]-*.patch
           # Stage scripts download external sources (libpthread, BearSSL, HFS)
           # DXB runs *.sh before *.patch, so these populate sweet_libpthread/, sweet_bearssl/, sweet_hfs/ first
           cp xnu/patches/0019-stage-libpthread.sh dxb/patches/
