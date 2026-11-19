@@ -34043,3 +34043,27 @@ index 0000000..08e34b4
 +#define SWEET_SMP_MAX_CPUS 8
 +
 +#endif /* _PEXPERT_ARM64_SWEET_H_ */
+diff --git a/iokit/IOKit/IORPC.h b/iokit/IOKit/IORPC.h
+index 3ded78c5..10cb1d55 100644
+--- a/iokit/IOKit/IORPC.h
++++ b/iokit/IOKit/IORPC.h
+@@ -224,6 +224,7 @@ struct IORPC {
+ 	IORPCMessageMach * reply;
+ 	uint32_t           sendSize;
+ 	uint32_t           replySize;
++	void               *kernelContent;
+ };
+ typedef struct IORPC IORPC;
+ 
+diff --git a/iokit/DriverKit/IORPC.h b/iokit/DriverKit/IORPC.h
+index 3ded78c5..10cb1d55 100644
+--- a/iokit/DriverKit/IORPC.h
++++ b/iokit/DriverKit/IORPC.h
+@@ -224,6 +224,7 @@ struct IORPC {
+ 	IORPCMessageMach * reply;
+ 	uint32_t           sendSize;
+ 	uint32_t           replySize;
++	void               *kernelContent;
+ };
+ typedef struct IORPC IORPC;
+ 
