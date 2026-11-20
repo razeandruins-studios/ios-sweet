@@ -55,6 +55,14 @@ jobs:
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
           ls dxb/patches
+          # Inject CURTANA machine config support into upstream xnu.
+          # The 0099 patch generates against patched xnu, so git apply --check skips it.
+          # Rather than pre-patching xnu (brittle), patch the makefile directly so the
+          # build system accepts MACHINE_CONFIG=CURTANA after DXB has already cloned xnu.
+          sed -i '' 's/^SUPPORTED_ARM64_MACHINE_CONFIGS = .*/& CURTANA/' dxb/xnu/makedefs/MakeInc.def
+          sed -n '28,35p' dxb/xnu/makedefs/MakeInc.def
+          sed -i '' '/^MACHINE_FLAGS_ARM64_SWEET/a MACHINE_FLAGS_ARM64_CURTANA = -DARM64_BOARD_CONFIG_CURTANA            -march=armv8.2-a+crypto' dxb/xnu/makedefs/MakeInc.def
+          grep "MACHINE_FLAGS_ARM64_CURTANA\|MACHINE_FLAGS_ARM64_SWEET" dxb/xnu/makedefs/MakeInc.def
 
       - name: Deps
         run: |
