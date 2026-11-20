@@ -2,36 +2,46 @@
 # 0098-curtana-make-support.sh
 # Purpose: Ensure CURTANA/SWEET machine config support in XNU build system.
 #          This runs BEFORE patches via DXB's *.sh pipeline.
+#          Scripts execute from the XNU source root (same as other *.sh patches).
 set -euo pipefail
 
-# Always apply for CURTANA builds (MACHINE_CONFIG env var is set by workflow)
-if [[ "${MACHINE_CONFIG:-}" != "CURTANA" ]]; then
-    exit 0
-fi
+[[ "${MACHINE_CONFIG:-}" == SWEET || "${MACHINE_CONFIG:-}" == CURTANA ]] || exit 0
 
-XNU_ROOT="${WORK_DIR:-.}/xnu"
-[[ -d "$XNU_ROOT" ]] || { echo "0098: xnu root not found at $XNU_ROOT"; exit 0; }
+# Verify we're running from xnu source root (like other staging scripts)
+[[ -f Makefile ]] || { echo "0098: not in xnu source root"; exit 0; }
 
 echo "0098: Applying CURTANA make support fixes..."
 
-# Add NO_MONITOR to SWEET.h if missing (backup safeguard — 0099 should do this)
-SWEET_H="$XNU_ROOT/pexpert/pexpert/arm64/SWEET.h"
+# Add NO_MONITOR to SWEET.h if missing (backup safeguard — 0099 should handle this)
+SWEET_H="pexpert/pexpert/arm64/SWEET.h"
 if [[ -f "$SWEET_H" ]] && ! grep -q "NO_MONITOR" "$SWEET_H"; then
     echo "0098: Adding NO_MONITOR to $SWEET_H"
-    sed -i '' '/#define SWEET_SMP_MAX_CPUS 8/a \\n#define NO_MONITOR              1' "$SWEET_H"
+    sed -i '/#define SWEET_SMP_MAX_CPUS 8/a \
+\
+#define NO_MONITOR              1' "$SWEET_H"
 else
-    echo "0098: SWEET.h already has NO_MONITOR (or file missing)"
+    echo "0098: SWEET.h OK (already has NO_MONITOR or file missing)"
 fi
 
-# CRITICAL FIX: MakeInc.kernel has its OWN independent SUPPORTED_ARM64_MACHINE_CONFIGS check
-# that 0099 does NOT patch. Must add CURTANA here or build fails with:
-#   "Unsupported CURRENT_MACHINE_CONFIG CURTANA"
-MAKEINC_KERNEL="$XNU_ROOT/makedefs/MakeInc.kernel"
-if [[ -f "$MAKEINC_KERNEL" ]] && ! grep -q "CURTANA" "$MAKEINC_KERNEL"; then
-    echo "0098: Adding CURTANA to SUPPORTED_ARM64_MACHINE_CONFIGS in MakeInc.kernel"
-    sed -i '' 's/^SUPPORTED_ARM64_MACHINE_CONFIGS = .*$/& CURTANA/' "$MAKEINC_KERNEL"
+# CRITICAL FIX: Add CURTANA and SWEET to SUPPORTED_ARM64_MACHINE_CONFIGS in MakeInc.def
+MAKEINC_DEF="makedefs/MakeInc.def"
+if [[ -f "$MAKEINC_DEF" ]]; then
+    if ! grep -q "SWEET CURTANA" "$MAKEINC_DEF"; then
+        echo "0098: Adding SWEET and CURTANA to SUPPORTED list in $MAKEINC_DEF"
+        sed -i 's/^SUPPORTED_ARM64_MACHINE_CONFIGS = \(.*VMAPPLE\)$/\1 SWEET CURTANA/' "$MAKEINC_DEF"
+    else
+        echo "0098: MakeInc.def already has SWEET/CURTANA in SUPPORTED list"
+    fi
+
+    # Add MACHINE_FLAGS for SWEET and CURTANA if missing
+    if ! grep -q "MACHINE_FLAGS_ARM64_SWEET" "$MAKEINC_DEF"; then
+        echo "0098: Adding MACHINE_FLAGS for SWEET and CURTANA"
+        sed -i '/^MACHINE_FLAGS_ARM64_/a MACHINE_FLAGS_ARM64_SWEET = -DARM64_BOARD_CONFIG_SWEET                -march=armv8.2-a+crypto\nMACHINE_FLAGS_ARM64_CURTANA = -DARM64_BOARD_CONFIG_CURTANA            -march=armv8.2-a+crypto' "$MAKEINC_DEF"
+    else
+        echo "0098: MACHINE_FLAGS already present"
+    fi
 else
-    echo "0098: MakeInc.kernel already has CURTANA (or file missing)"
+    echo "0098: WARNING: $MAKEINC_DEF not found"
 fi
 
 echo "0098: CURTANA make support configured successfully"
