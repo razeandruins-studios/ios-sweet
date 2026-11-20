@@ -13,15 +13,31 @@ MAKEDefs="makedefs/MakeInc.def"
     exit 1
 }
 
-# Add CURTANA to SUPPORTED_ARM64_MACHINE_CONFIGS if not already present.
-if ! grep -q '^SUPPORTED_ARM64_MACHINE_CONFIGS.*CURTANA' "$MAKEDefs"; then
-    sed -i '' 's/^SUPPORTED_ARM64_MACHINE_CONFIGS = .*/& CURTANA/' "$MAKEDefs"
-fi
+python3 - "$MAKEDefs" << 'PY'
+import re, sys
 
-# Add MACHINE_FLAGS_ARM64_CURTANA entry immediately after the SWEET entry.
-if ! grep -q '^MACHINE_FLAGS_ARM64_CURTANA' "$MAKEDefs"; then
-    sed -i '' '/^MACHINE_FLAGS_ARM64_SWEET/a MACHINE_FLAGS_ARM64_CURTANA = -DARM64_BOARD_CONFIG_CURTANA            -march=armv8.2-a+crypto' "$MAKEDefs"
-fi
+makefile = sys.argv[1]
+with open(makefile, 'r') as f:
+    content = f.read()
+
+# Add CURTANA to all SUPPORTED_ARM64_MACHINE_CONFIGS lines that don't already have it.
+content = re.sub(
+    r'^(SUPPORTED_ARM64_MACHINE_CONFIGS\s*=\s*.+?)(?<!CURTANA)\s*$',
+    r'\1 CURTANA',
+    content,
+    flags=re.MULTILINE
+)
+
+# Insert MACHINE_FLAGS_ARM64_CURTANA immediately after VMAPPLE entry.
+if 'MACHINE_FLAGS_ARM64_CURTANA' not in content:
+    content = content.replace(
+        'MACHINE_FLAGS_ARM64_VMAPPLE = -DARM64_BOARD_CONFIG_VMAPPLE              -march=armv8.5a\n',
+        'MACHINE_FLAGS_ARM64_VMAPPLE = -DARM64_BOARD_CONFIG_VMAPPLE              -march=armv8.5a\nMACHINE_FLAGS_ARM64_CURTANA = -DARM64_BOARD_CONFIG_CURTANA            -march=armv8.2-a+crypto\n'
+    )
+
+with open(makefile, 'w') as f:
+    f.write(content)
+PY
 
 echo "CURTANA make support injected into $MAKEDefs"
-grep -E "SUPPORTED_ARM64_MACHINE_CONFIGS|MACHINE_FLAGS_ARM64_(SWEET|CURTANA)" "$MAKEDefs"
+grep -nE "SUPPORTED_ARM64_MACHINE_CONFIGS|MACHINE_FLAGS_ARM64_(VMAPPLE|CURTANA)" "$MAKEDefs"
