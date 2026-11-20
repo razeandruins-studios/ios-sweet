@@ -54,6 +54,8 @@ jobs:
           # Stage script to inject CURTANA MACHINE_CONFIG support into xnu MakeInc.def
           # Runs after xnu clone but before 0099 patch — avoids git apply --check skip.
           cp xnu/patches/0098-curtana-make-support.sh dxb/patches/
+          # Fix clang -enable-trivial-auto-var-init flag (same as 0001-new-clang-drop-removed-auto-var-init-flag.patch)
+          cp xnu/patches/0001-new-clang-drop-removed-auto-var-init-flag.patch dxb/patches/ 2>/dev/null || true
           # libfirehose_kernel is built arm64e-only; the SWEET/CURTANA kernel is plain arm64
           sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh
           grep -c 'VALID_ARCHS="x86_64 arm64e arm64"' dxb/build.sh
