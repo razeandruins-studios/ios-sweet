@@ -44,7 +44,9 @@ jobs:
           git init -q dxb
           git -C dxb fetch -q --depth 1 "$DXB_REPO" "$DXB_SHA"
           git -C dxb checkout -q FETCH_HEAD
-          # Inject only the consolidated CURTANA patch.
+          # Inject 0098 make-support script (runs before patches via DXB *.sh pipeline).
+          cp xnu/patches/0098-curtana-make-support.sh dxb/patches/
+          # Inject the consolidated CURTANA patch.
           cp xnu/patches/0099-curtana-full-series.patch dxb/patches/
           # Stage external sources required by CURTANA.
           # DXB runs *.sh before *.patch, so these populate sweet_libpthread/, sweet_bearssl/, sweet_hfs/ first
